@@ -1,0 +1,12 @@
+# The SDCP fork is cloned by the user during setup (see README), not vendored.
+/libfprint-egismoc-sdcp/
+
+# Build artifacts
+builddir/
+*.o
+*.so
+*.so.*
+
+# Editor/OS cruft
+*~
+.DS_Store

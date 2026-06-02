@@ -1,0 +1,37 @@
+egismoc: add Egis ETU906 (1c7a:05a5) for Samsung Galaxy Book5
+
+SPDX-License-Identifier: LGPL-2.1-or-later
+(derives from libfprint egismoc.c, LGPL-2.1-or-later)
+
+The Samsung Galaxy Book5 (960XHA / board NP964XHA-KG2DE) ships an Egis
+Technology (LighTuning) ETU906Axx-E Match-on-Chip fingerprint reader with
+USB id 1c7a:05a5, which is not present in the egismoc id_table.
+
+The device speaks the egismoc "type 2" check-prefix protocol (like its
+1c7a:05a1 sibling) and enrolls in 15 stages.
+
+IMPORTANT - SDCP REQUIRED:
+  This id_table line alone is sufficient for *detection* (fprintd-list) but
+  NOT for enrollment. The ETU906 requires the SDCP secure handshake. Mainline
+  libfprint's egismoc driver derives from FP_TYPE_DEVICE and does not perform
+  SDCP, so enroll/verify fail with "Unrecognized response from device" or
+  enroll-disconnected.
+
+  For a WORKING enroll/verify, build the SDCP-capable egismoc fork, which
+  derives the driver from FPI_TYPE_SDCP_DEVICE and already carries this exact
+  id_table entry (with EGISMOC_DRIVER_MAX_ENROLL_STAGES_15):
+
+      https://github.com/TenSeventy7/libfprint-egismoc-sdcp
+
+  On mainline this patch yields detection only.
+
+diff --git a/libfprint/drivers/egismoc/egismoc.c b/libfprint/drivers/egismoc/egismoc.c
+--- a/libfprint/drivers/egismoc/egismoc.c
++++ b/libfprint/drivers/egismoc/egismoc.c
+@@ -57,6 +57,7 @@ static const FpIdEntry egismoc_id_table[] = {
+   { .vid = 0x1c7a, .pid = 0x0587, .driver_data = EGISMOC_DRIVER_CHECK_PREFIX_TYPE1 | EGISMOC_DRIVER_MAX_ENROLL_STAGES_20 },
+   { .vid = 0x1c7a, .pid = 0x0588, .driver_data = EGISMOC_DRIVER_CHECK_PREFIX_TYPE1 | EGISMOC_DRIVER_MAX_ENROLL_STAGES_20 },
+   { .vid = 0x1c7a, .pid = 0x05a1, .driver_data = EGISMOC_DRIVER_CHECK_PREFIX_TYPE2 },
++  { .vid = 0x1c7a, .pid = 0x05a5, .driver_data = EGISMOC_DRIVER_CHECK_PREFIX_TYPE2 },
+   { .vid = 0,      .pid = 0,      .driver_data = 0 }
+ };

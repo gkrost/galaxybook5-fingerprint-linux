@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright (C) 2026 Gernot Krost <gernot@krost.org>
+#
+# libfprint-sdcp-reinstall
+#
+# Restores the SDCP-capable libfprint (Egis ETU906 / 1c7a:05a5, Samsung Galaxy
+# Book5) if an apt/dpkg transaction replaced the system libfprint with the
+# distro build. Designed to be invoked from an APT Post-Invoke hook, but safe to
+# run by hand at any time.
+#
+# Self-healing: it only acts if the ACTIVE library no longer contains the 05a5
+# id-table entry. If libfprint wasn't touched, it exits silently (no-op).
+#
+# Installed by setup-persistence.sh. Cached artifact lives in /opt/libfprint-sdcp.
+set -euo pipefail
+
+LIBDIR=/usr/lib/x86_64-linux-gnu
+ACTIVE_LINK="$LIBDIR/libfprint-2.so.2"
+CACHE_DIR=/opt/libfprint-sdcp
+CACHED_LIB="$CACHE_DIR/libfprint-2.so.2.0.0"
+CACHED_VER_FILE="$CACHE_DIR/built-against-version"
+# Marker bytes: USB id 1c7a:05a5 in the egismoc id_table (LE: pid a505, vid 7a1c)
+MARKER="a5050000 7a1c0000"
+TAG="libfprint-sdcp"
+
+log() { echo "[$TAG] $*"; }
+
+# Capture-then-grep (avoid SIGPIPE under pipefail with grep -q).
+has_marker() {
+  local f="$1" dump
+  [ -f "$f" ] || return 1
+  dump="$(objdump -s "$f" 2>/dev/null || true)"
+  grep -qiE "$MARKER" <<<"$dump"
+}
+
+# --- Guard: cache must exist (setup must have run) ---
+if [ ! -f "$CACHED_LIB" ]; then
+  log "no cached SDCP library at $CACHED_LIB; nothing to do (run setup-persistence.sh first)"
+  exit 0
+fi
+
+# --- Fast path: active lib already good -> no-op ---
+ACTIVE_REAL="$(readlink -f "$ACTIVE_LINK" 2>/dev/null || true)"
+if [ -n "$ACTIVE_REAL" ] && has_marker "$ACTIVE_REAL"; then
+  # libfprint untouched (or already ours). Silent success.
+  exit 0
+fi
+
+log "active libfprint lacks Egis 05a5 support (active: ${ACTIVE_REAL:-none}); restoring SDCP build"
+
+# --- Restore cached SDCP lib ---
+install -m0644 "$CACHED_LIB" "$LIBDIR/libfprint-2.so.2.0.0"
+ln -sf libfprint-2.so.2.0.0 "$LIBDIR/libfprint-2.so.2"
+ln -sf libfprint-2.so.2     "$LIBDIR/libfprint-2.so"
+ldconfig
+
+# --- Verify the restore actually took ---
+NEW_ACTIVE="$(readlink -f "$ACTIVE_LINK")"
+if ! has_marker "$NEW_ACTIVE"; then
+  log "ERROR: restore failed, active lib still lacks 05a5 ($NEW_ACTIVE)" >&2
+  exit 1
+fi
+log "restored SDCP libfprint -> $NEW_ACTIVE"
+
+# --- Restart fprintd so it reloads the lib ---
+systemctl restart fprintd 2>/dev/null || true
+
+# --- Version-drift warning (non-fatal) ---
+INSTALLED_VER="$(dpkg-query -W -f='${Version}' libfprint-2-2 2>/dev/null || true)"
+CACHED_VER="$(cat "$CACHED_VER_FILE" 2>/dev/null || true)"
+if [ -n "$INSTALLED_VER" ] && [ -n "$CACHED_VER" ] && \
+   dpkg --compare-versions "$INSTALLED_VER" gt "$CACHED_VER"; then
+  cat >&2 <<EOF
+[$TAG] ===================================================================
+[$TAG] NOTE: distro shipped a NEWER libfprint ($INSTALLED_VER) than the
+[$TAG] SDCP build you cached ($CACHED_VER). Your fingerprint sensor still
+[$TAG] works (cached SDCP lib restored), but you may want to rebuild the
+[$TAG] SDCP fork against the new release to pick up upstream fixes:
+[$TAG]
+[$TAG]   # from your clone of galaxybook5-fingerprint-linux:
+[$TAG]   cd libfprint-egismoc-sdcp && git pull && ninja -C builddir && cd .. \\
+[$TAG]     && sudo ./scripts/install-sdcp.sh \\
+[$TAG]     && sudo ./scripts/setup-persistence.sh   # refresh cache
+[$TAG] ===================================================================
+EOF
+fi
+
+exit 0

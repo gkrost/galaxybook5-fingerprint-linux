@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2026 Gernot Krost <gernot@krost.org>
+// APT hook: keep the SDCP-capable libfprint (Egis ETU906 / 1c7a:05a5) in place
+// after any apt/dpkg transaction that may have replaced the distro libfprint.
+// The script is a no-op when libfprint wasn't touched.
+// Installed at /etc/apt/apt.conf.d/99-libfprint-sdcp by setup-persistence.sh.
+DPkg::Post-Invoke { "if [ -x /usr/local/sbin/libfprint-sdcp-reinstall ]; then /usr/local/sbin/libfprint-sdcp-reinstall || true; fi"; };
