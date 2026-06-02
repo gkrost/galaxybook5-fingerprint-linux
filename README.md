@@ -15,15 +15,37 @@ and install the **SDCP-capable `egismoc` fork** (which already lists `05a5`).
 
 ## Hardware / software this was verified on
 
+> ⚠️ **Same marketing name ≠ same sensor.** "Galaxy Book5" covers several models,
+> and even one model number may ship different fingerprint hardware across
+> revisions/regions. This guide is verified specifically for USB id **`1c7a:05a5`
+> (Egis ETU906Axx-E)**. **Check your `lsusb` output first** (Step 0). If your id
+> differs, this recipe may not apply unchanged.
+
 | Item | Value |
 |------|-------|
-| Laptop | Samsung Galaxy Book5 — `960XHA`, board `NP964XHA-KG2DE` |
+| Laptop | Samsung Galaxy Book5 — Product Name `960XHA`, System Version `P09AMA`, board `NP964XHA-KG2DE` |
+| CPU | Intel Core Ultra 7 258V (Lunar Lake, 8 cores) |
+| RAM | 32 GiB |
+| GPU | Intel Graphics (integrated) |
 | Sensor | Egis Technology (LighTuning) ETU906Axx-E, USB `1c7a:05a5` |
-| OS | Ubuntu 26.04 LTS (resolute) |
-| Desktop / DM | KDE Plasma 6 / SDDM |
-| Kernel | 7.0.9 |
+| OS | Kubuntu 26.04 LTS (resolute) |
+| Desktop | KDE Plasma 6.6.4 (Frameworks 6.24.0, Qt 6.10.2), **Wayland** |
+| Display manager | SDDM |
+| Kernel | 7.0.9-070009-generic (x86_64) |
 | Distro libfprint | `1:1.95.1+tod1-0ubuntu1` |
 | Working driver | `TenSeventy7/libfprint-egismoc-sdcp` (base 1.94.9, HEAD `4d128d4`) |
+
+**Confirm you have the same machine + sensor** before following this guide:
+
+```bash
+cat /sys/class/dmi/id/product_name   # expect: 960XHA
+cat /sys/class/dmi/id/product_version # expect: P09AMA
+lsusb | grep -i 1c7a                 # expect: 1c7a:05a5 ... ETU906Axx-E
+```
+
+If `product_name` matches but the **USB id differs**, you have a different
+fingerprint module — open an issue with your `lsusb` line so the device list can
+grow.
 
 ## Why the distro driver isn't enough
 
