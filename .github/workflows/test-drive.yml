@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+name: test-drive
+
+# Validates the hardware-independent plumbing (build, install, persistence,
+# APT self-heal hook) in a vanilla Ubuntu container. The physical sensor
+# (enroll/verify) cannot be tested in CI and is skipped.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plumbing:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - ubuntu:26.04
+          - ubuntu:24.04   # older libfprint; proves the scripts still work
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Container test-drive (${{ matrix.image }})
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: bash test/container-testdrive.sh

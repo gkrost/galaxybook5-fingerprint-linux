@@ -1,5 +1,7 @@
 # Samsung Galaxy Book5 (960XHA) — Fingerprint Sensor on Linux
 
+[![test-drive](https://github.com/gkrost/galaxybook5-fingerprint-linux/actions/workflows/test-drive.yml/badge.svg)](https://github.com/gkrost/galaxybook5-fingerprint-linux/actions/workflows/test-drive.yml)
+
 Get the **Egis ETU906Axx-E** fingerprint reader (`1c7a:05a5`) working under Linux
 (tested on **Ubuntu 26.04 / KDE Plasma 6 / SDDM**, kernel `7.0.9`).
 
@@ -212,6 +214,18 @@ sudo ldconfig && sudo systemctl restart fprintd
 | `enroll-duplicate` | A print is already stored on-chip. Run `examples/clear-storage` (stop `fprintd` first). |
 | `enroll-disconnected` / `Unrecognized response` | You're still on the stock (non-SDCP) driver. Confirm the active lib is the fork build. |
 | Driver debug | `sudo systemctl stop fprintd; sudo G_MESSAGES_DEBUG=all /usr/libexec/fprintd` (driver logs live in the daemon, not the `fprintd-*` clients). |
+
+## Testing
+
+`test/container-testdrive.sh` runs the full **hardware-independent** flow (build →
+install → persistence → APT self-heal) in a throwaway Ubuntu container. CI runs it
+on every push against Ubuntu 26.04 and 24.04. The physical sensor (enroll/verify)
+can only be tested on real hardware and is out of scope for CI.
+
+```bash
+test/container-testdrive.sh            # needs Docker
+IMAGE=ubuntu:24.04 test/container-testdrive.sh
+```
 
 ## Credits
 
